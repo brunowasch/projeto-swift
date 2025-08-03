@@ -60,7 +60,7 @@ class CarroEsportivo: Veiculo {
         super.init(
             nomePiloto: nomePiloto,
             velocidadeAtual: 200,
-            combustivel: 10,
+            combustivel: 7,
             distanciaPercorrida: 0
         )
     }
@@ -97,7 +97,7 @@ class Moto: Veiculo {
     init (nomePiloto: String) {
         super.init(
             nomePiloto: nomePiloto,
-            velocidadeAtual: 150,
+            velocidadeAtual: 130,
             combustivel: 8,
             distanciaPercorrida: 0
         )
@@ -122,9 +122,28 @@ func eventoAleatorio(veiculo: Veiculo) {
     }
 }
 
+func gridAtual(veiculos: [Veiculo]) {
+    var ranqueamento = veiculos
+
+    print("\nGrid atual após volta:")
+    ranqueamento.sort(by: {
+        if $0.combustivel <= 0 && $1.combustivel > 0 {
+            return false
+        } else if $0.combustivel > 0 && $1.combustivel <= 0 {
+            return true
+        } else {
+            return $0.distanciaPercorrida > $1.distanciaPercorrida
+        }
+    }) 
+    for (i, veiculo) in ranqueamento.enumerated() {
+        let status = veiculo.combustivel <= 0 ? "(DNF)" : ""
+        print("\(i + 1)º lugar: \(veiculo.nomePiloto) - \(String(format: "%.1f", veiculo.distanciaPercorrida)) km \(status)")
+    }
+}
+
 func corridaInterativa(veiculos: [Veiculo]) {
-    while veiculos.contains(where: {$0.combustivel > 0}) {
-        for veiculo in veiculos{
+    while veiculos.filter({ $0.combustivel > 0 }).count > 1 {
+        for veiculo in veiculos.filter({ $0.combustivel > 0 }) {
             if veiculo.pulandoRodada {
                 print("\(veiculo.nomePiloto) Está reabastecendo nessa rodada. Fora por um turno.")
                 veiculo.pulandoRodada = false
@@ -132,8 +151,11 @@ func corridaInterativa(veiculos: [Veiculo]) {
             }
             if veiculo.combustivel <= 0 {
                 print("Acabou o combustível de \(veiculo.nomePiloto). Fora!")
-                continue // Pula para o próximo veículo no laço
-            } else {
+                continue
+            }
+
+            var acaoValida = true
+            repeat {
                 print("\nPiloto: \(veiculo.nomePiloto)\nEscolha uma ação:\n")
                 print("""
                 1 - Acelerar (Consome muito combustível)
@@ -142,50 +164,70 @@ func corridaInterativa(veiculos: [Veiculo]) {
                 4 - Ver status
                 5 - Sair da corrida
                 """)
+
                 let pilotoEscolha = Int(readLine() ?? "") ?? 0
                 do {
                     if pilotoEscolha == 1 {
                         try veiculo.acelerar()
                         eventoAleatorio(veiculo: veiculo)
                         print("\(veiculo.nomePiloto) acelerou. Distância total: \(String(format: "%.1f", veiculo.distanciaPercorrida)) km")
+
                         let distanciaFinal: Float = 3000
                         if veiculo.distanciaPercorrida >= distanciaFinal {
                             print("\(veiculo.nomePiloto) completou a corrida! 🏁")
-                            for zerar in veiculos {
-                                zerar.combustivel = 0 // Encerra a corrida
-                            }
-                        }   
-                        
+                        }
+                        acaoValida = true
                     } else if pilotoEscolha == 2 {
                         try veiculo.frear()
+                        acaoValida = true
                     } else if pilotoEscolha == 3 {
                         try veiculo.reabastecer()
+                        acaoValida = true
                     } else if pilotoEscolha == 4 {
                         veiculo.mostrarStatus()
                     } else if pilotoEscolha == 5 {
                         veiculo.combustivel = 0
+                        acaoValida = true
                     } else {
                         throw ErroTecnico.numeroInvalido
                     }
+                } catch ErroDeCorrida.combustivelInsuficiente {
+                    veiculo.combustivel = 0
+                    print("\(veiculo.nomePiloto) está sem combustível. Fora!")
+                    acaoValida = true
+                } catch ErroTecnico.numeroInvalido {
+                    print("Opção inválida. Digite um número entre 1 a 5")
                 } catch {
-                    print("Opção inválida. Tente novamente.")
+                    print("Ocorreu um erro inesperado!")
+                    acaoValida = true
                 }
-                
-            }
-         }
+            } while !acaoValida
+        }
+
+        gridAtual(veiculos: veiculos)
+    }
+
+    if let vencedor = veiculos.first(where: { $0.combustivel > 0 }) {
+        print("\n🏁 Corrida encerrada! Apenas \(vencedor.nomePiloto) restou na corrida.")
     }
 
     var ranqueamento = veiculos
-    
-    print("Corrida encerrada!\nGrid final:")
+    print("\nGrid final:")
     ranqueamento.sort(by: {
-        $0.distanciaPercorrida > $1.distanciaPercorrida //Ordena do maior para menor colocado
+        if $0.combustivel <= 0 && $1.combustivel > 0 {
+            return false
+        } else if $0.combustivel > 0 && $1.combustivel <= 0 {
+            return true
+        } else {
+            return $0.distanciaPercorrida > $1.distanciaPercorrida
+        }
     })
-    
     for (i, veiculo) in ranqueamento.enumerated() {
-        print("\(i + 1)º lugar: \(veiculo.nomePiloto) - \(veiculo.distanciaPercorrida) km")
+        let status = veiculo.combustivel <= 0 ? "(DNF)" : ""
+        print("\(i + 1)º lugar: \(veiculo.nomePiloto) - \(String(format: "%.1f", veiculo.distanciaPercorrida)) km \(status)")
     }
 }
+
 
 func main() {
     print("Bem-vindo à Corrida da POO! 🚗")
@@ -195,11 +237,13 @@ func main() {
     var veiculos: [Veiculo] = []
     var nome: String = ""
     var i: Int = 1
-
     repeat {
         print("Digite o nome do \(i)º piloto (digite 'Sair' para encerrar):")
         nome = readLine() ?? ""
-        if nome.lowercased() != "sair" {
+        if nome.lowercased() == "sair" && veiculos.count < 2{
+            print("É necessário pelo menos 2 pilotos para a competição começar")
+            nome = "" // limpa o nome do jogador
+        } else if nome.lowercased() != "sair" {
             do {
                 print("""
                 Escolha o tipo do veículo:
@@ -231,7 +275,7 @@ func main() {
                 print("Tipo de veículo inválido. Por favor, escolha 1, 2 ou 3.")
             }
         }
-    } while nome.lowercased() != "sair"
+    } while !(nome.lowercased() == "sair" && veiculos.count >= 2)
 
     print("Cadastro encerrado! Grid da corrida:")
     for veiculo in veiculos {
