@@ -175,6 +175,8 @@ func corridaInterativa(veiculos: [Veiculo]) {
                         let distanciaFinal: Float = 3000
                         if veiculo.distanciaPercorrida >= distanciaFinal {
                             print("\(veiculo.nomePiloto) completou a corrida! 🏁")
+                            gridAtual(veiculos: veiculos)
+                            return
                         }
                         acaoValida = true
                     } else if pilotoEscolha == 2 {
